@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>五行英雄對戰</title>
+<style>
+  :root {
+    --bg: #1e1f29;
+    --panel: #2a2c3a;
+    --panel-2: #1c1d27;
+    --line: #3f4158;
+    --accent: #6c8cff;
+    --good: #4caf82;
+    --bad: #e0556f;
+    --gold: #e0b34f;
+    --text: #f1f1f6;
+    --muted: #9698ab;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #eef0f6; --panel: #ffffff; --panel-2: #f4f5fa; --line: #d3d6e3;
+      --text: #1d1f2b; --muted: #5d6075;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #eef0f6; --panel: #ffffff; --panel-2: #f4f5fa; --line: #d3d6e3;
+    --text: #1d1f2b; --muted: #5d6075;
+  }
+  :root[data-theme="dark"] {
+    --bg: #1e1f29; --panel: #2a2c3a; --panel-2: #1c1d27; --line: #3f4158;
+    --text: #f1f1f6; --muted: #9698ab;
+  }
+  :root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+  html { height: 100%; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100%;
+    background: var(--bg);
+    font-size: 18px; /* 投影用,字大一點 */
+    color: var(--text);
+    font-family: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 24px 16px;
+  }
+  .shell {
+    width: 100%;
+    max-width: 960px;
+    background: var(--panel);
+    border-radius: 16px;
+    padding: 26px 22px;
+    box-shadow: 0 12px 30px rgba(0,0,0,0.35);
+  }
+  h1 { font-size: 1.4rem; margin: 0 0 8px; }
+  h2 { font-size: 1.1rem; margin: 0 0 12px; }
+  p.desc { color: var(--muted); margin: 0 0 18px; line-height: 1.6; }
+  label.field { display: block; margin-bottom: 14px; }
+  label.field > span { display: block; color: var(--muted); font-size: .9rem; margin-bottom: 6px; }
+  input[type="text"] {
+    width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line);
+    background: var(--panel-2); color: var(--text); font-size: 1rem; margin-bottom: 8px;
+  }
+  .seg { display: flex; gap: 6px; flex-wrap: wrap; }
+  .seg button { background: var(--panel-2); color: var(--text); border: 1px solid var(--line); padding: 8px 14px; font-weight: 600; }
+  .seg button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button {
+    cursor: pointer; border: none; border-radius: 10px; padding: 12px 18px; font-size: 1rem; font-weight: 600;
+    font-family: inherit;
+  }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+  .btn-primary { background: var(--accent); color: #fff; width: 100%; }
+  .btn-secondary { background: transparent; color: var(--muted); border: 1px solid var(--line); margin-top: 10px; width: 100%; }
+  .btn-gold { background: var(--gold); color: #2a2200; width: 100%; }
+  .btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .btn-row .btn-secondary { margin-top: 0; }
+  .faction-tag { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: .85rem; font-weight: 700; color: #1c1d27; }
+  .turn-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+  .turn-head .who { font-size: 1.2rem; font-weight: 700; }
+  .stats-row { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; color: var(--muted); font-size: .9rem; margin-bottom: 12px; }
+  .hand-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; margin-bottom: 14px; min-height: 90px; }
+  .hand-card { border-radius: 10px; padding: 8px 6px; font-size: .8rem; text-align: center; border: 2px solid var(--line); background: var(--panel-2); line-height: 1.4; }
+  .hand-card .score { font-weight: 700; font-size: .95rem; }
+  .hand-card .role { color: var(--muted); font-size: .72rem; margin-top: 2px; }
+  .breakdown { color: var(--muted); font-size: .85rem; margin: -4px 0 14px; }
+  .hint { color: var(--muted); font-size: .85rem; margin: 8px 0 0; text-align: center; min-height: 1.2em; }
+  .board { display: grid; gap: 6px; margin-bottom: 16px; }
+  .board-row { display: grid; grid-template-columns: 8px 1fr auto; gap: 10px; align-items: center; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; }
+  .board-row.now { border-color: var(--gold); border-width: 2px; }
+  .board-row .bar { align-self: stretch; border-radius: 4px; }
+  .board-row .meta { color: var(--muted); font-size: .8rem; }
+  .board-row .pts { font-size: 1.3rem; font-weight: 700; }
+  .summary-row { display: flex; justify-content: space-between; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: .95rem; }
+  .submit-status { color: var(--muted); font-size: .85rem; margin-top: 14px; text-align: center; }
+  .best-note { color: var(--muted); font-size: .85rem; margin-top: 8px; text-align: center; }
+  .hidden { display: none !important; }
+  .el-chip { display: inline-block; min-width: 1.6em; padding: 1px 8px; border-radius: 6px; font-weight: 700; color: #1c1d27; text-align: center; }
+  .legend { color: var(--muted); font-size: .85rem; margin: 0 0 12px; line-height: 1.8; }
+  .hand-card .elem { font-size: 1.3rem; font-weight: 800; }
+  .hand-card.hero { box-shadow: inset 0 0 0 2px var(--gold); }
+  .rules { background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; margin: 0 0 16px; line-height: 1.7; font-size: .92rem; }
+  .rules li { margin-bottom: 2px; }
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 10; }
+  .modal-box { background: var(--panel); border-radius: 14px; padding: 22px; max-width: 440px; width: 100%; border: 1px solid var(--gold); max-height: 90vh; overflow: auto; }
+  .modal-box h3 { margin: 0 0 6px; color: var(--gold); }
+  .choice-btn { display: block; width: 100%; text-align: left; background: var(--panel-2); color: var(--text); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; font-size: .95rem; }
+  .choice-btn.correct { background: rgba(76,175,130,0.2); border-color: var(--good); }
+  .choice-btn.wrong { background: rgba(224,85,111,0.2); border-color: var(--bad); }
+  .feedback { min-height: 20px; font-size: .9rem; margin: 6px 0 4px; }
+  .feedback.good { color: var(--good); }
+  .feedback.bad { color: var(--bad); }
+  .handover { text-align: center; }
+  .handover .big { font-size: 2rem; font-weight: 700; margin: 8px 0 16px; }
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+  <!-- ===== 畫面一:開始畫面(選模式、人數、名字) ===== -->
+  <div id="screen-start">
+    <h1 id="game-title">⚔️ 五行英雄對戰</h1>
+    <p class="desc" id="game-desc">各組輪流從同一副牌抽卡,途中會遇到「機會命運」問答。湊齊同元素的英雄和元素卡拿加成,分數夠高就去挑戰別組搶卡!</p>
+    <ul class="rules" id="rules-box"></ul>
+    <div class="field" id="mode-field">
+      <label class="field"><span>遊玩模式</span></label>
+      <div class="seg" id="mode-seg"></div>
+    </div>
+    <div class="field hidden" id="count-field" style="margin-top:14px">
+      <label class="field"><span>玩家人數(同一台裝置輪流操作)</span></label>
+      <div class="seg" id="count-seg"></div>
+    </div>
+    <div id="name-inputs" style="margin-top:14px"></div>
+    <button class="btn-primary" id="btn-start">開始遊戲</button>
+    <div class="best-note" id="best-note"></div>
+  </div>
+
+  <!-- ===== 畫面二:遊戲進行中(輪流行動) ===== -->
+  <div id="screen-game" class="hidden">
+    <div class="board" id="board"></div>
+    <div class="turn-head">
+      <span class="who" id="turn-who"></span>
+      <span class="faction-tag" id="faction-tag"></span>
+    </div>
+    <div class="legend" id="legend"></div>
+    <div class="stats-row">
+      <span id="stat-progress"></span>
+      <span id="stat-chance"></span>
+    </div>
+    <div class="hand-grid" id="hand-grid"></div>
+    <div class="breakdown" id="breakdown"></div>
+    <div class="btn-row">
+      <button class="btn-primary" id="btn-draw">抽下一張</button>
+      <button class="btn-gold" id="btn-battle">挑戰別組</button>
+    </div>
+    <p class="hint" id="turn-hint"></p>
+  </div>
+
+  <!-- ===== 畫面三:結算畫面 ===== -->
+  <div id="screen-end" class="hidden">
+    <h1 id="end-title">🎉 遊戲結束!</h1>
+    <div id="end-summary"></div>
+    <div class="submit-status" id="submit-status"></div>
+    <button class="btn-secondary" id="btn-restart">再玩一次</button>
+  </div>
+
+  <!-- ===== 機會命運問答視窗 ===== -->
+  <div id="question-modal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <h3>🎴 機會命運</h3>
+      <p id="q-who" style="color:var(--muted);margin:0 0 6px"></p>
+      <p id="q-text"></p>
+      <div id="q-choices"></div>
+      <div class="feedback" id="q-feedback"></div>
+    </div>
+  </div>
+
+  <!-- ===== 通用視窗:換人、選戰鬥對象、戰鬥結果 ===== -->
+  <div id="info-modal" class="modal-overlay hidden">
+    <div class="modal-box" id="info-box"></div>
+  </div>
+
+</div>
+
+<script>
+/* =========================================================
+   第一部分:資料與設定 —— 客製化時主要改這裡
+   ========================================================= */
+
+/* 1. 組別(沿用範本的 FACTIONS 當「組別」用;這次沒有陣營分配,只用來給各組顏色與名稱)
+      組別依序分配,不隨機 */
+const FACTIONS = [
+  { key: "t1", label: "第 1 組", color: "#9b8cff" },
+  { key: "t2", label: "第 2 組", color: "#4fd1c5" },
+  { key: "t3", label: "第 3 組", color: "#ff8fb1" },
+  { key: "t4", label: "第 4 組", color: "#c6e377" }
+];
+
+/* 1-1. 五行元素 */
+const ELEMENTS = [
+  { key: "metal", label: "金", color: "#e0c15a" },
+  { key: "wood",  label: "木", color: "#5cc98a" },
+  { key: "water", label: "水", color: "#5b9bef" },
+  { key: "fire",  label: "火", color: "#ef6a5b" },
+  { key: "earth", label: "土", color: "#c89a64" }
+];
+
+/* 1-2. 五行相剋:key 剋 value(金剋木、木剋土、土剋水、水剋火、火剋金) */
+const COUNTERS = { metal: "wood", wood: "earth", earth: "water", water: "fire", fire: "metal" };
+
+/* 2. 卡片身分 */
+const ROLES = [
+  { key: "element", label: "元素卡" },
+  { key: "hero",    label: "英雄卡" }
+];
+
+/* 3. 卡片資料:{ id, element, role, name, baseScore }
+      元素卡:每個元素 5 張,1~5 分;英雄卡:每個元素 1 位,5 分。共 30 張 */
+const HERO_NAMES = { metal: "刀鋒武士", wood: "森林守護者", water: "潮汐法師", fire: "烈焰戰士", earth: "大地巨人" };
+const CARD_POOL = (() => {
+  const pool = [];
+  let id = 1;
+  ELEMENTS.forEach(e => {
+    for (let v = 1; v <= 5; v++) pool.push({ id: id++, element: e.key, role: "element", name: `${e.label}之石`, baseScore: v });
+    pool.push({ id: id++, element: e.key, role: "hero", name: HERO_NAMES[e.key], baseScore: 5 });
+  });
+  return pool;
+})();
+
+/* 4. 機會命運問答卡(社會科暫用題,之後直接換掉)。correctBonus / wrongPenalty 都填正數 */
+const QUESTION_CARDS = [
+  { id: 1, question: "台灣最高的山是哪一座?", choices: ["雪山", "玉山", "合歡山"], answerIndex: 1, correctBonus: 5, wrongPenalty: 3 },
+  { id: 2, question: "台灣最長的河流是哪一條?", choices: ["濁水溪", "淡水河", "高屏溪"], answerIndex: 0, correctBonus: 5, wrongPenalty: 3 },
+  { id: 3, question: "台灣面積最大的縣市是?", choices: ["南投縣", "台東縣", "花蓮縣"], answerIndex: 2, correctBonus: 5, wrongPenalty: 3 },
+  { id: 4, question: "三權分立中,負責制定法律的是哪一種權力?", choices: ["行政權", "立法權", "司法權"], answerIndex: 1, correctBonus: 5, wrongPenalty: 3 },
+  { id: 5, question: "一個國家位階最高的法律是?", choices: ["憲法", "民法", "刑法"], answerIndex: 0, correctBonus: 5, wrongPenalty: 3 },
+  { id: 6, question: "地球上面積最大的海洋是?", choices: ["大西洋", "印度洋", "太平洋"], answerIndex: 2, correctBonus: 5, wrongPenalty: 3 },
+  { id: 7, question: "國際換日線大致沿著哪一條經線?", choices: ["0 度經線", "90 度經線", "180 度經線"], answerIndex: 2, correctBonus: 5, wrongPenalty: 3 },
+  { id: 8, question: "台灣位在哪兩個板塊的交界?", choices: ["歐亞板塊與菲律賓海板塊", "太平洋板塊與北美板塊", "印澳板塊與歐亞板塊"], answerIndex: 0, correctBonus: 5, wrongPenalty: 3 }
+];
+
+/* 5. 遊戲設定 */
+const GAME = {
+  modes: ["hotseat"],          // 只做多人同一畫面輪流
+  defaultMode: "hotseat",
+  minPlayers: 2,               // 最少幾組
+  maxPlayers: 4,               // 最多幾組
+  defaultPlayers: 4,           // 開始畫面預設幾組
+  drawFrom: "shared",          // 大家從同一副牌抽
+  handSize: 6,                 // 每組總共抽幾張卡(4 組 × 6 = 24 張,牌庫 30 張)
+  questionInterval: 2,         // 每抽 2 張卡穿插 1 題問答(每組共 3 題)
+  heroSameElementBonus: 3,     // 英雄卡 + 同元素的元素卡,每張額外 +3
+  battleThreshold: 25,         // 總分「超過」這個數字才能挑戰
+  counterBonus: 10,            // 攻擊方主元素剋防守方主元素時,戰鬥分數 +10
+  battlesPerPlayer: 2          // 每組每局最多主動挑戰幾次
+};
+
+/* 6. Google Apps Script 上傳網址 */
+const GAS_URL = "PASTE_YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE";
+
+/* 7. localStorage key(記錄這台裝置的歷史最高分) */
+const STORAGE_KEY = "edu-game-wuxing-hero-best";
+
+
+/* =========================================================
+   第二部分:規則函式 —— 規則不同時,整個函式可以改寫
+   只要維持「輸入、輸出」的形狀,其他程式就不用動
+   ========================================================= */
+
+const getElement = (key) => ELEMENTS.find(e => e.key === key);
+const elLabel = (key) => (getElement(key) || { label: "無" }).label;
+
+/* 主元素:手牌中張數最多的元素(英雄卡也算);同張數比卡面總分;再同就依 金木水火土 順序 */
+function mainElement(player) {
+  let best = null, bestN = 0, bestSum = 0;
+  ELEMENTS.forEach(e => {
+    const cards = player.hand.filter(c => c.element === e.key);
+    const n = cards.length, sum = cards.reduce((s, c) => s + c.baseScore, 0);
+    if (n > bestN || (n === bestN && n > 0 && sum > bestSum)) { best = e.key; bestN = n; bestSum = sum; }
+  });
+  return best;
+}
+
+/* R1. 計分:卡面總分 + 英雄加成 + 問答加減分
+   英雄加成:每張英雄卡,手上每一張「同元素的元素卡」+3(有兩張同元素英雄就各算一次) */
+function scorePlayer(player) {
+  const base = player.hand.reduce((s, c) => s + c.baseScore, 0);
+  const heroes = player.hand.filter(c => c.role === "hero");
+  const elems = player.hand.filter(c => c.role === "element");
+  let synergy = 0;
+  const synParts = [];
+  heroes.forEach(h => {
+    const n = elems.filter(c => c.element === h.element).length;
+    if (n) { synergy += n * GAME.heroSameElementBonus; synParts.push(`${elLabel(h.element)}英雄 × ${n} 張`); }
+  });
+  const total = base + synergy + player.chanceScoreDelta;
+  const parts = [`卡面 ${base}`];
+  if (synergy) parts.push(`英雄加成 +${synergy}(${synParts.join("、")})`);
+  if (player.chanceScoreDelta) parts.push(`問答 ${signed(player.chanceScoreDelta)}`);
+  return { total, detail: parts.join(",") + ` = ${total}` };
+}
+
+/* R2. 能不能挑戰:可以就回傳 "",不行就回傳原因 */
+function canBattle(player) {
+  if (player.battlesUsed >= GAME.battlesPerPlayer) return `本局的挑戰次數(${GAME.battlesPerPlayer} 次)已經用完`;
+  const total = scorePlayer(player).total;
+  if (total <= GAME.battleThreshold) return `總分超過 ${GAME.battleThreshold} 分才能挑戰別組(目前 ${total})`;
+  if (battleTargets(player).length === 0) return "沒有可以挑戰的組別";
+  return "";
+}
+
+/* R3. 可以挑戰的對象:其他組,且手上至少有一張卡(不然輸了也交不出卡) */
+function battleTargets(player) {
+  return state.players.filter(p => p !== player && p.hand.length > 0);
+}
+
+/* R4. 單人模式電腦分數(本遊戲不使用單人模式,保留函式形狀) */
+function getNpcScore() { return 0; }
+
+/* 交出分數最高的一張卡(看卡面分數;同分時交英雄卡) */
+function takeBestCard(player) {
+  let idx = 0;
+  player.hand.forEach((c, i) => {
+    const b = player.hand[idx];
+    if (c.baseScore > b.baseScore || (c.baseScore === b.baseScore && c.role === "hero" && b.role !== "hero")) idx = i;
+  });
+  return player.hand.splice(idx, 1)[0];
+}
+
+/* R5. 戰鬥結算
+   戰鬥分數 = 目前總分;攻擊方主元素剋防守方主元素時,攻擊方 +10
+   分數高的贏,輸的一方交出分數最高的一張卡給贏家;平手不交卡 */
+function resolveBattle(attacker, defender) {
+  const aEl = mainElement(attacker), dEl = mainElement(defender);
+  const aScore = scorePlayer(attacker).total;
+  const d = scorePlayer(defender).total;
+  const counter = !!(aEl && dEl && COUNTERS[aEl] === dEl);
+  const a = aScore + (counter ? GAME.counterBonus : 0);
+  let msg = counter ? `【${elLabel(aEl)}剋${elLabel(dEl)}】` : "";
+  msg += `${attacker.name}(主元素 ${elLabel(aEl)})戰鬥分數 ${aScore}${counter ? ` + ${GAME.counterBonus} = ${a}` : ""};` +
+         `${defender.name}(主元素 ${elLabel(dEl)})戰鬥分數 ${d}。`;
+  if (a > d) {
+    const card = takeBestCard(defender);
+    attacker.hand.push(card);
+    attacker.battleWins++; defender.battleLosses++;
+    msg += `${attacker.name} 勝利!${defender.name} 交出「${card.name}」(${elLabel(card.element)},${card.baseScore} 分)。`;
+  } else if (a < d) {
+    const card = takeBestCard(attacker);
+    defender.hand.push(card);
+    defender.battleWins++; attacker.battleLosses++;
+    msg += `${defender.name} 守住了!${attacker.name} 交出「${card.name}」(${elLabel(card.element)},${card.baseScore} 分)。`;
+  } else {
+    msg += "平手,雙方都不用交卡。";
+  }
+  return msg;
+}
+
+/* R6. 決定名次:依總分高低 */
+function rankPlayers(players) {
+  return players.slice().sort((x, y) => scorePlayer(y).total - scorePlayer(x).total);
+}
+
+
+/* =========================================================
+   第三部分:遊戲流程 —— 通常不需要修改
+   ========================================================= */
+
+/* 遊戲狀態。每位玩家的資料都在 players 陣列裡。
+   規則需要新的玩家欄位(例如籌碼、俘虜)時,在 makePlayer() 裡加,不要改既有欄位名稱 */
+let state = {
+  mode: GAME.defaultMode,
+  playerCount: GAME.defaultPlayers,
+  players: [],
+  turn: 0,
+  busy: false,       // 問答或視窗開著時為 true,期間鎖住所有行動按鈕
+  startTime: null
+};
+
+function makePlayer(name, faction) {
+  return {
+    name, faction,
+    drawQueue: [],
+    hand: [],
+    chanceScoreDelta: 0,
+    correctCount: 0,
+    wrongCount: 0,
+    battleBonus: 0,
+    battlesUsed: 0,
+    battleWins: 0,        // 戰鬥勝場(含防守成功)
+    battleLosses: 0,      // 戰鬥敗場
+    flags: {}
+  };
+}
+
+const el = (id) => document.getElementById(id);
+const getFaction = (key) => FACTIONS.find(f => f.key === key);
+const roleLabel = (key) => (ROLES.find(r => r.key === key) || { label: key }).label;
+const signed = (n) => (n >= 0 ? "+" : "") + n;
+const cur = () => state.players[state.turn];
+const escapeHtml = (s) => String(s).replace(/[&<>"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
+
+function shuffle(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function loadBest() {
+  try { const raw = localStorage.getItem(STORAGE_KEY); return raw ? JSON.parse(raw) : null; } catch (e) { return null; }
+}
+function saveBestIfNeeded(score, name) {
+  const best = loadBest();
+  if (!best || score > best.score) {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ score, name })); } catch (e) {}
+  }
+}
+function showBestNote() {
+  const best = loadBest();
+  el("best-note").textContent = best ? `這台裝置的最高分:${best.score} 分${best.name ? "(" + best.name + ")" : ""}` : "";
+}
+
+/* ---------- 開始畫面 ---------- */
+function renderSetup() {
+  const modeLabel = { solo: "單人(對電腦)", hotseat: "多人(同一畫面輪流)" };
+  el("mode-field").classList.toggle("hidden", GAME.modes.length < 2);
+  el("mode-seg").innerHTML = GAME.modes.map(m =>
+    `<button type="button" data-mode="${m}" aria-pressed="${state.mode === m}">${modeLabel[m]}</button>`).join("");
+  el("count-field").classList.toggle("hidden", state.mode !== "hotseat");
+  el("rules-box").innerHTML = RULES_TEXT.map(t => `<li>${t}</li>`).join("");
+  const counts = [];
+  for (let n = GAME.minPlayers; n <= GAME.maxPlayers; n++) counts.push(n);
+  el("count-seg").innerHTML = counts.map(n =>
+    `<button type="button" data-count="${n}" aria-pressed="${state.playerCount === n}">${n} 組</button>`).join("");
+  const n = state.mode === "hotseat" ? state.playerCount : 1;
+  const old = [...document.querySelectorAll("#name-inputs input")].map(i => i.value);
+  let html = `<label class="field"><span>${n > 1 ? "組名(可留空)" : "姓名或暱稱"}</span>`;
+  for (let i = 0; i < n; i++) {
+    html += `<input type="text" data-name="${i}" placeholder="${n > 1 ? "第 " + (i + 1) + " 組" : "請輸入姓名或暱稱"}" value="${escapeHtml(old[i] || "")}">`;
+  }
+  el("name-inputs").innerHTML = html + "</label>";
+}
+
+/* ---------- 分配組別、組抽卡佇列 ---------- */
+const RULES_TEXT = [
+  "卡片分成「元素卡」(金木水火土)和「英雄卡」,所有組從同一副牌抽。",
+  `英雄加成:手上有英雄卡時,每張「同元素的元素卡」額外 +${GAME.heroSameElementBonus} 分。`,
+  `總分超過 ${GAME.battleThreshold} 分,可以用這一回合挑戰別組(每組最多 ${GAME.battlesPerPlayer} 次)。`,
+  `五行相剋:金剋木、木剋土、土剋水、水剋火、火剋金。攻擊方的主元素剋防守方時,戰鬥分數 +${GAME.counterBonus}。`,
+  "主元素 = 手上張數最多的元素。戰鬥輸的一方要交出分數最高的一張卡給贏家。"
+];
+function assignFactions(n) {
+  // 這次沒有陣營分配:依序給第 1、2、3、4 組
+  return Array.from({ length: n }, (_, i) => FACTIONS[i % FACTIONS.length].key);
+}
+
+/* 依 handSize / questionInterval 為每位玩家組出抽卡佇列。
+   佇列裡每一項是 { type: "card", data } 或 { type: "question", data } */
+function buildDrawDeck() {
+  const questions = shuffle(QUESTION_CARDS);
+  let qIndex = 0;
+  const shared = shuffle(CARD_POOL);
+  state.players.forEach((p, pi) => {
+    let cards;
+    if (GAME.drawFrom === "ownFaction") {
+      cards = shuffle(CARD_POOL.filter(c => c.faction === p.faction)).slice(0, GAME.handSize);
+    } else {
+      cards = [];
+      for (let k = 0; k < GAME.handSize; k++) {
+        const c = shared[k * state.players.length + pi];
+        if (c) cards.push(c);
+      }
+    }
+    const queue = [];
+    cards.forEach((card, i) => {
+      queue.push({ type: "card", data: card });
+      if ((i + 1) % GAME.questionInterval === 0 && questions.length) {
+        queue.push({ type: "question", data: questions[qIndex % questions.length] });
+        qIndex++;
+      }
+    });
+    p.drawQueue = queue;
+  });
+}
+
+function startGame() {
+  const n = state.mode === "hotseat" ? state.playerCount : 1;
+  const names = [...document.querySelectorAll("#name-inputs input")].map(i => i.value.trim());
+  const factions = assignFactions(n);
+  state.players = factions.map((f, i) => makePlayer(names[i] || getFaction(f).label, f));
+  state.turn = 0;
+  state.busy = false;
+  state.startTime = Date.now();
+  buildDrawDeck();
+
+  el("screen-start").classList.add("hidden");
+  el("screen-game").classList.remove("hidden");
+  renderGame();
+
+  if (state.mode === "hotseat") {
+    const order = state.players.map(p =>
+      `<span class="faction-tag" style="background:${getFaction(p.faction).color}">${escapeHtml(p.name)}</span>`).join(" → ");
+    showInfo(`<h3>規則提醒</h3><ul class="rules">${RULES_TEXT.map(t => `<li>${t}</li>`).join("")}</ul><p>輪流順序:${order}</p>`,
+      [{ label: "開始", primary: true }]).then(showHandover);
+  }
+}
+
+/* ---------- 畫面 ---------- */
+function renderGame() {
+  const p = cur();
+  const f = getFaction(p.faction);
+  const sc = scorePlayer(p);
+
+  // 多人模式的記分板
+  el("board").classList.toggle("hidden", state.mode !== "hotseat");
+  el("board").innerHTML = state.players.map((o, i) => {
+    const left = o.drawQueue.filter(x => x.type === "card").length;
+    const me = mainElement(o);
+    const chip = me ? `<span class="el-chip" style="background:${getElement(me).color}">${elLabel(me)}</span>` : "—";
+    return `<div class="board-row ${i === state.turn ? "now" : ""}">
+      <span class="bar" style="background:${getFaction(o.faction).color}"></span>
+      <div><div>${escapeHtml(o.name)}</div><div class="meta">主元素 ${chip},手牌 ${o.hand.length} 張,還有 ${left} 張可抽,戰績 ${o.battleWins} 勝 ${o.battleLosses} 敗</div></div>
+      <span class="pts">${scorePlayer(o).total}</span></div>`;
+  }).join("");
+
+  el("turn-who").textContent = state.mode === "hotseat" ? `輪到 ${p.name}` : p.name;
+  const tag = el("faction-tag");
+  const me = mainElement(p);
+  tag.textContent = me ? `主元素:${elLabel(me)}` : "主元素:—";
+  tag.style.background = me ? getElement(me).color : f.color;
+  el("legend").innerHTML = "五行相剋:" + ELEMENTS.map(e =>
+    `<span class="el-chip" style="background:${e.color}">${e.label}</span> 剋 <span class="el-chip" style="background:${getElement(COUNTERS[e.key]).color}">${elLabel(COUNTERS[e.key])}</span>`).join(" ");
+
+  el("stat-progress").textContent = `手牌 ${p.hand.length} 張,還有 ${p.drawQueue.filter(x => x.type === "card").length} 張可抽`;
+  el("stat-chance").textContent = `機會命運加減分:${signed(p.chanceScoreDelta)}`;
+
+  el("hand-grid").innerHTML = p.hand.map(card => {
+    const ce = getElement(card.element);
+    return `<div class="hand-card ${card.role === "hero" ? "hero" : ""}" style="border-color:${ce.color}">
+      <div class="elem" style="color:${ce.color}">${ce.label}</div>
+      <div class="score">${card.baseScore} 分</div><div>${escapeHtml(card.name)}</div><div class="role">${roleLabel(card.role)}</div></div>`;
+  }).join("");
+  el("breakdown").textContent = `目前總分:${sc.detail}`;
+
+  const noDraw = p.drawQueue.length === 0;
+  const block = canBattle(p);
+  el("btn-draw").textContent = noDraw ? "已經抽完" : "抽下一張";
+  el("btn-draw").disabled = state.busy || noDraw;
+  el("btn-battle").disabled = state.busy || !!block;
+  el("turn-hint").textContent = block ? `挑戰:${block}` : "分數已超過門檻,這回合可以選擇挑戰別組(挑戰會用掉這一回合)。";
+}
+
+/* ---------- 通用視窗 ---------- */
+function showInfo(html, buttons) {
+  state.busy = true;
+  renderGameIfVisible();
+  return new Promise(resolve => {
+    el("info-box").innerHTML = html + `<div style="display:grid;gap:8px;margin-top:14px">` +
+      buttons.map((b, i) => `<button type="button" data-info="${i}" class="${b.primary ? "btn-primary" : b.gold ? "btn-gold" : "btn-secondary"}" style="margin:0">${escapeHtml(b.label)}</button>`).join("") + `</div>`;
+    el("info-modal").classList.remove("hidden");
+    el("info-box").querySelectorAll("[data-info]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        el("info-modal").classList.add("hidden");
+        state.busy = false;
+        renderGameIfVisible();
+        resolve(buttons[+btn.dataset.info].value);
+      });
+    });
+    const first = el("info-box").querySelector(".btn-primary") || el("info-box").querySelector("button");
+    if (first) first.focus();
+  });
+}
+function renderGameIfVisible() {
+  if (!el("screen-game").classList.contains("hidden") && state.players.length) renderGame();
+}
+function showHandover() {
+  if (state.mode !== "hotseat") return Promise.resolve();
+  const p = cur();
+  return showInfo(`<div class="handover"><div style="color:var(--muted)">請把裝置交給</div>
+    <div class="big" style="color:${getFaction(p.faction).color}">${escapeHtml(p.name)}</div></div>`,
+    [{ label: "我準備好了", primary: true }]);
+}
+
+/* ---------- 行動:抽卡 ----------
+   問答視窗開著的時候 state.busy = true,抽卡與戰鬥按鈕都會被鎖住,不要拿掉這個鎖定 */
+function drawNext() {
+  if (state.busy) return;
+  const p = cur();
+  if (p.drawQueue.length === 0) return;
+  const item = p.drawQueue.shift();
+  if (item.type === "card") {
+    p.hand.push(item.data);
+    renderGame();
+    endTurn();
+  } else {
+    showQuestionModal(item.data);
+  }
+}
+
+function showQuestionModal(q) {
+  state.busy = true;
+  renderGame();
+  el("q-who").textContent = state.mode === "hotseat" ? `由 ${cur().name} 作答` : "";
+  el("q-text").textContent = q.question;
+  el("q-feedback").textContent = "";
+  el("q-feedback").className = "feedback";
+  const wrap = el("q-choices");
+  wrap.innerHTML = "";
+  q.choices.forEach((text, i) => {
+    const btn = document.createElement("button");
+    btn.className = "choice-btn";
+    btn.textContent = text;
+    btn.addEventListener("click", () => answerQuestion(i, q, btn));
+    wrap.appendChild(btn);
+  });
+  el("question-modal").classList.remove("hidden");
+}
+
+function answerQuestion(choiceIndex, q, btnEl) {
+  const p = cur();
+  document.querySelectorAll("#q-choices .choice-btn").forEach(b => b.disabled = true);
+  if (choiceIndex === q.answerIndex) {
+    p.correctCount++;
+    p.chanceScoreDelta += q.correctBonus;
+    btnEl.classList.add("correct");
+    el("q-feedback").textContent = `答對了!+${q.correctBonus} 分`;
+    el("q-feedback").className = "feedback good";
+  } else {
+    p.wrongCount++;
+    p.chanceScoreDelta -= q.wrongPenalty;
+    btnEl.classList.add("wrong");
+    el("q-feedback").textContent = `答錯了,-${q.wrongPenalty} 分(正確答案:${q.choices[q.answerIndex]})`;
+    el("q-feedback").className = "feedback bad";
+  }
+  setTimeout(() => {
+    el("question-modal").classList.add("hidden");
+    state.busy = false;
+    renderGame();
+    endTurn();
+  }, 1200);
+}
+
+/* ---------- 行動:戰鬥 ---------- */
+async function startBattle() {
+  if (state.busy) return;
+  const p = cur();
+  if (canBattle(p)) return;
+  let target = null;
+  if (state.mode === "hotseat") {
+    const myEl = mainElement(p);
+    const options = battleTargets(p).map(o => {
+      const oe = mainElement(o);
+      const counter = myEl && oe && COUNTERS[myEl] === oe;
+      return { label: `${o.name}(主元素 ${elLabel(oe)},${scorePlayer(o).total} 分)${counter ? ` ★ 你剋他 +${GAME.counterBonus}` : ""}`, value: o, gold: true };
+    });
+    target = await showInfo(`<h3>要挑戰哪一組?</h3><p style="color:var(--muted)">你的主元素:${elLabel(myEl)},目前 ${scorePlayer(p).total} 分</p>`, [...options, { label: "取消", value: null }]);
+    if (!target) return;
+  }
+  p.battlesUsed++;
+  const msg = resolveBattle(p, target);
+  await showInfo(`<h3>戰鬥結果</h3><p>${escapeHtml(msg)}</p>`, [{ label: "繼續", primary: true }]);
+  endTurn();
+}
+
+/* ---------- 換人與結束 ---------- */
+function endTurn() {
+  if (state.players.every(p => p.drawQueue.length === 0)) {
+    finishGame();
+    return;
+  }
+  if (state.mode === "hotseat") {
+    // 跳過已經抽完的玩家
+    do { state.turn = (state.turn + 1) % state.players.length; } while (cur().drawQueue.length === 0);
+    renderGame();
+    showHandover();
+  } else {
+    renderGame();
+  }
+}
+
+function finishGame() {
+  el("screen-game").classList.add("hidden");
+  el("screen-end").classList.remove("hidden");
+  const durationSec = Math.round((Date.now() - state.startTime) / 1000);
+  const ranked = rankPlayers(state.players);
+
+  let html = "";
+  ranked.forEach((p, i) => {
+    const sc = scorePlayer(p);
+    html += `<h2 style="margin-top:${i ? 18 : 6}px">${ranked.length > 1 ? `第 ${i + 1} 名:` : ""}${escapeHtml(p.name)}</h2>
+      <div class="summary-row"><span>主元素 / 手牌</span><span>${elLabel(mainElement(p))} / ${p.hand.length} 張</span></div>
+      <div class="summary-row"><span>計分</span><span>${escapeHtml(sc.detail)}</span></div>
+      <div class="summary-row"><span>答對/答錯</span><span>${p.correctCount} / ${p.wrongCount}</span></div>
+      <div class="summary-row"><span>戰鬥</span><span>${p.battleWins} 勝 ${p.battleLosses} 敗(主動挑戰 ${p.battlesUsed} 次)</span></div>
+      <div class="summary-row"><span>最終分數</span><span><b>${sc.total} 分</b></span></div>`;
+  });
+  el("end-title").textContent = ranked.length > 1 ? `🏆 ${ranked[0].name} 獲勝!` : "🎉 遊戲結束!";
+  el("end-summary").innerHTML = html;
+
+  saveBestIfNeeded(scorePlayer(ranked[0]).total, ranked[0].name);
+
+  /* 上傳資料:一局一筆,players 陣列裡每位玩家一項。
+     要記錄哪些欄位由使用者決定,加欄位時 gas-backend.gs 的 appendRow 也要對應 */
+  const payload = {
+    mode: state.mode,
+    playerCount: state.players.length,
+    durationSec: durationSec,
+    players: ranked.map((p, i) => ({
+      rank: i + 1,
+      playerName: p.name,
+      mainElement: elLabel(mainElement(p)),
+      handCount: p.hand.length,
+      finalScore: scorePlayer(p).total,
+      correctCount: p.correctCount,
+      wrongCount: p.wrongCount,
+      battleWins: p.battleWins,
+      battleLosses: p.battleLosses
+    }))
+  };
+  sendResultsToSheet(payload);
+}
+
+/* ---------- 送資料到 Google Apps Script ---------- */
+function sendResultsToSheet(payload) {
+  const statusEl = el("submit-status");
+  if (!GAS_URL || GAS_URL.indexOf("PASTE_YOUR") === 0) {
+    statusEl.textContent = "(尚未設定 Google 試算表網址,成績只顯示在畫面上)";
+    return;
+  }
+  statusEl.textContent = "成績上傳中...";
+  fetch(GAS_URL, {
+    method: "POST",
+    mode: "no-cors",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  }).then(() => {
+    statusEl.textContent = "成績已送出 ✅";
+  }).catch(() => {
+    statusEl.textContent = "送出失敗,請檢查網路連線";
+  });
+}
+
+/* ---------- 初始化與事件綁定 ---------- */
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("button");
+  if (!b) return;
+  if (b.dataset.mode) { state.mode = b.dataset.mode; renderSetup(); }
+  if (b.dataset.count) { state.playerCount = +b.dataset.count; renderSetup(); }
+});
+el("btn-start").addEventListener("click", startGame);
+el("btn-draw").addEventListener("click", drawNext);
+el("btn-battle").addEventListener("click", startBattle);
+el("btn-restart").addEventListener("click", () => {
+  el("screen-end").classList.add("hidden");
+  el("screen-start").classList.remove("hidden");
+  el("submit-status").textContent = "";
+  renderSetup();
+  showBestNote();
+});
+
+if (!GAME.modes.includes(state.mode)) state.mode = GAME.modes[0];
+renderSetup();
+showBestNote();
+</script>
+
+</body>
+</html>
