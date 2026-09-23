@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>數字密碼闖關 Demo</title>
+<style>
+  :root {
+    --bg: #1e1f29;
+    --panel: #2a2c3a;
+    --accent: #6c8cff;
+    --good: #4caf82;
+    --bad: #e0556f;
+    --text: #f1f1f6;
+    --muted: #9698ab;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .card {
+    width: 100%;
+    max-width: 420px;
+    background: var(--panel);
+    border-radius: 16px;
+    padding: 28px 24px;
+    box-shadow: 0 12px 30px rgba(0,0,0,0.35);
+  }
+  h1 { font-size: 1.4rem; margin: 0 0 8px; text-align: center; }
+  p.desc { color: var(--muted); margin: 0 0 20px; line-height: 1.6; text-align: center; }
+  input[type="text"] {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid #3f4158;
+    background: #1c1d27;
+    color: var(--text);
+    font-size: 1rem;
+    margin-bottom: 16px;
+  }
+  button {
+    cursor: pointer;
+    border: none;
+    border-radius: 10px;
+    padding: 12px 18px;
+    font-size: 1rem;
+    font-weight: 600;
+  }
+  .btn-primary { background: var(--accent); color: #fff; width: 100%; }
+  .btn-secondary { background: transparent; color: var(--muted); border: 1px solid #3f4158; margin-top: 10px; width: 100%; }
+  .progress-wrap { background: #1c1d27; border-radius: 8px; height: 10px; overflow: hidden; margin-bottom: 18px; }
+  .progress-bar { height: 100%; background: var(--accent); width: 0%; transition: width .35s ease; }
+  .level-title { font-size: .95rem; color: var(--muted); margin-bottom: 4px; text-align: center; }
+  .question { font-size: 1.2rem; margin: 6px 0 20px; line-height: 1.6; text-align: center; font-weight: 600; }
+
+  /* ---- 數字密碼鎖 UI ---- */
+  .passcode-display {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 20px;
+    min-height: 46px;
+  }
+  .passcode-slot {
+    width: 40px;
+    height: 46px;
+    border-radius: 8px;
+    border: 1px solid #3f4158;
+    background: #1c1d27;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+    font-weight: 700;
+  }
+  .passcode-slot.filled { border-color: var(--accent); }
+  .keypad {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .key {
+    background: #1c1d27;
+    color: var(--text);
+    border: 1px solid #3f4158;
+    border-radius: 10px;
+    padding: 16px 0;
+    font-size: 1.15rem;
+  }
+  .key:hover { border-color: var(--accent); }
+  .key:active { background: #24263380; }
+  .key.wide { grid-column: span 1; }
+  .key.confirm { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  .feedback { min-height: 24px; font-size: .95rem; margin-bottom: 6px; text-align: center; }
+  .feedback.good { color: var(--good); }
+  .feedback.bad { color: var(--bad); }
+  .passcode-shake { animation: shake .3s; }
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    25% { transform: translateX(-4px); }
+    75% { transform: translateX(4px); }
+  }
+  .hidden { display: none !important; }
+  .summary-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #3f4158; font-size: .95rem; }
+  .submit-status { color: var(--muted); font-size: .85rem; margin-top: 14px; text-align: center; }
+</style>
+</head>
+<body>
+
+<div class="card">
+
+  <!-- ===== 畫面一:開始畫面 ===== -->
+  <div id="screen-start">
+    <h1>🔐 數字密碼闖關</h1>
+    <p class="desc">算出答案,輸入正確的數字密碼才能過關!</p>
+    <input type="text" id="player-name" placeholder="請輸入姓名或暱稱">
+    <button class="btn-primary" id="btn-start">開始遊戲</button>
+  </div>
+
+  <!-- ===== 畫面二:遊戲進行中 ===== -->
+  <div id="screen-game" class="hidden">
+    <div class="progress-wrap"><div class="progress-bar" id="progress-bar"></div></div>
+    <div class="level-title" id="level-title"></div>
+    <div class="question" id="question-text"></div>
+
+    <div class="passcode-display" id="passcode-display"></div>
+    <div class="feedback" id="feedback"></div>
+
+    <div class="keypad" id="keypad"></div>
+  </div>
+
+  <!-- ===== 畫面三:結算畫面 ===== -->
+  <div id="screen-end" class="hidden">
+    <h1>🎉 挑戰完成!</h1>
+    <div class="summary-row"><span>玩家</span><span id="sum-name"></span></div>
+    <div class="summary-row"><span>答對關卡</span><span id="sum-correct"></span></div>
+    <div class="summary-row"><span>答錯次數</span><span id="sum-wrong"></span></div>
+    <div class="summary-row"><span>花費時間</span><span id="sum-time"></span></div>
+    <div class="submit-status" id="submit-status"></div>
+    <button class="btn-secondary" id="btn-restart">再玩一次</button>
+  </div>
+
+</div>
+
+<script>
+/* =========================================================
+   1. 關卡資料
+   每一關: { id, title, question, answer, hint }
+   answer 是「數字密碼」的正確字串(用字串比對,可支援多位數)
+   ========================================================= */
+const LEVELS = [
+  { id: 1, title: "第一關", question: "1 + 1 = ?", answer: "2", hint: "從 1 開始數 1 格" },
+  { id: 2, title: "第二關", question: "最小的非負質數是?", answer: "2", hint: "0 和 1 都不是質數,質數要從 2 開始算" },
+  { id: 3, title: "第三關", question: "sin(π) = ?", answer: "0", hint: "π 弧度是正弦函數的其中一個零點" }
+];
+
+/* =========================================================
+   2. Google Apps Script 上傳網址
+   部署好你自己的 GAS 後端之後,把網址貼在這裡。
+   還沒決定要不要串接的話先放著,遊戲一樣可以玩,
+   只是最後不會真的送出資料。
+   ========================================================= */
+const GAS_URL = "PASTE_YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE";
+
+/* =========================================================
+   3. 存檔用的 key
+   ========================================================= */
+const STORAGE_KEY = "edu-game-passcode-demo-progress";
+
+/* =========================================================
+   4. 遊戲狀態(不要改欄位名稱)
+   ========================================================= */
+let state = {
+  currentLevel: 0,
+  correctCount: 0,
+  wrongCount: 0,
+  startTime: null,
+  playerName: "",
+  currentLevelStartTime: null, // 目前這一關開始的時間戳,用來算破關耗時
+  levelDurations: []           // 每一關「破關花了幾秒」,依關卡順序存放
+};
+
+// 目前輸入中的密碼(不存進 state / localStorage,只是畫面暫存)
+let currentInput = "";
+
+const el = (id) => document.getElementById(id);
+
+function saveProgress() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function loadProgress() {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (!raw) return false;
+  try {
+    const saved = JSON.parse(raw);
+    if (typeof saved.currentLevel === "number") {
+      state = { ...state, ...saved };
+      return true;
+    }
+  } catch (e) { /* 存檔壞掉就當作沒有存檔,重新開始 */ }
+  return false;
+}
+
+function startGame() {
+  const nameInput = el("player-name").value.trim();
+  state.playerName = nameInput || "玩家";
+  state.startTime = Date.now();
+  el("screen-start").classList.add("hidden");
+  el("screen-game").classList.remove("hidden");
+  renderLevel(state.currentLevel);
+  saveProgress();
+}
+
+/* =========================================================
+   5. 畫出目前這一關(數字密碼鎖介面)
+   ========================================================= */
+function renderLevel(index) {
+  const level = LEVELS[index];
+  currentInput = "";
+  state.currentLevelStartTime = Date.now();
+
+  el("level-title").textContent = level.title + `(第 ${index + 1} / ${LEVELS.length} 關)`;
+  el("question-text").textContent = level.question;
+  el("feedback").textContent = "";
+  el("feedback").className = "feedback";
+
+  renderPasscodeDisplay(level.answer.length);
+  renderKeypad();
+
+  const pct = Math.round((index / LEVELS.length) * 100);
+  el("progress-bar").style.width = pct + "%";
+}
+
+function renderPasscodeDisplay(slotCount) {
+  const wrap = el("passcode-display");
+  wrap.innerHTML = "";
+  for (let i = 0; i < slotCount; i++) {
+    const slot = document.createElement("div");
+    slot.className = "passcode-slot";
+    slot.textContent = currentInput[i] || "";
+    if (currentInput[i]) slot.classList.add("filled");
+    wrap.appendChild(slot);
+  }
+}
+
+function renderKeypad() {
+  const wrap = el("keypad");
+  wrap.innerHTML = "";
+  const layout = ["1","2","3","4","5","6","7","8","9","⌫","0","✓"];
+  layout.forEach((label) => {
+    const btn = document.createElement("button");
+    btn.className = "key";
+    btn.textContent = label;
+    if (label === "✓") btn.classList.add("confirm");
+    btn.addEventListener("click", () => onKeyPress(label));
+    wrap.appendChild(btn);
+  });
+}
+
+function onKeyPress(label) {
+  const level = LEVELS[state.currentLevel];
+  if (label === "⌫") {
+    currentInput = currentInput.slice(0, -1);
+    renderPasscodeDisplay(level.answer.length);
+    return;
+  }
+  if (label === "✓") {
+    submitAnswer();
+    return;
+  }
+  // 數字鍵:最多輸入到跟答案一樣長
+  if (currentInput.length < level.answer.length) {
+    currentInput += label;
+    renderPasscodeDisplay(level.answer.length);
+  }
+}
+
+/* =========================================================
+   6. 處理作答
+   答對 → 顯示成功回饋,延遲後進下一關
+   答錯 → 顯示提示、密碼欄位抖動,清空重輸(不影響關卡進度)
+   ========================================================= */
+function submitAnswer() {
+  const level = LEVELS[state.currentLevel];
+  const isCorrect = currentInput === level.answer;
+  const keys = document.querySelectorAll("#keypad .key");
+  keys.forEach(k => k.disabled = true);
+
+  if (isCorrect) {
+    state.correctCount++;
+    const levelSec = Math.round((Date.now() - state.currentLevelStartTime) / 1000);
+    state.levelDurations[state.currentLevel] = levelSec;
+    el("feedback").textContent = "密碼正確!準備進下一關 🎉";
+    el("feedback").className = "feedback good";
+    setTimeout(() => goToNextLevel(), 700);
+  } else {
+    state.wrongCount++;
+    el("feedback").textContent = level.hint ? `密碼錯誤,再想想:${level.hint}` : "密碼錯誤,再試一次!";
+    el("feedback").className = "feedback bad";
+    el("passcode-display").classList.add("passcode-shake");
+    setTimeout(() => {
+      el("passcode-display").classList.remove("passcode-shake");
+      currentInput = "";
+      renderPasscodeDisplay(level.answer.length);
+      keys.forEach(k => k.disabled = false);
+    }, 500);
+  }
+  saveProgress();
+}
+
+/* =========================================================
+   7. 前進下一關(所有換關卡動作都要經過這個函式)
+   ========================================================= */
+function goToNextLevel() {
+  state.currentLevel++;
+  saveProgress();
+  if (state.currentLevel >= LEVELS.length) {
+    finishGame();
+  } else {
+    renderLevel(state.currentLevel);
+  }
+}
+
+/* =========================================================
+   8. 遊戲結束,組資料並嘗試送到 Google 試算表
+   ========================================================= */
+function finishGame() {
+  const durationSec = Math.round((Date.now() - state.startTime) / 1000);
+  el("progress-bar").style.width = "100%";
+  el("screen-game").classList.add("hidden");
+  el("screen-end").classList.remove("hidden");
+
+  el("sum-name").textContent = state.playerName;
+  el("sum-correct").textContent = `${LEVELS.length} / ${LEVELS.length}`;
+  el("sum-wrong").textContent = state.wrongCount;
+  el("sum-time").textContent = durationSec + " 秒";
+
+  const payload = {
+    playerName: state.playerName,
+    totalLevels: LEVELS.length,
+    wrongCount: state.wrongCount,
+    durationSec: durationSec
+  };
+  // 把每一關的破關耗時攤平成 level1DurationSec, level2DurationSec, ...
+  // 這裡的欄位數量會跟著 LEVELS.length 自動變化,
+  // 對應到 gas-backend.gs 的 appendRow() 時記得欄位數要一致
+  LEVELS.forEach((lvl, i) => {
+    payload["level" + (i + 1) + "DurationSec"] = state.levelDurations[i] ?? "";
+  });
+  sendResultsToSheet(payload);
+
+  localStorage.removeItem(STORAGE_KEY);
+}
+
+/* =========================================================
+   9. 送資料到 Google Apps Script(no-cors,讀不到回應是正常的)
+   ========================================================= */
+function sendResultsToSheet(payload) {
+  const statusEl = el("submit-status");
+  if (!GAS_URL || GAS_URL.indexOf("PASTE_YOUR") === 0) {
+    statusEl.textContent = "(尚未設定 Google 試算表網址,成績只顯示在畫面上)";
+    return;
+  }
+  statusEl.textContent = "成績上傳中...";
+  fetch(GAS_URL, {
+    method: "POST",
+    mode: "no-cors",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  }).then(() => {
+    statusEl.textContent = "成績已送出 ✅";
+  }).catch(() => {
+    statusEl.textContent = "送出失敗,請檢查網路連線";
+  });
+}
+
+/* =========================================================
+   10. 初始化與事件綁定
+   ========================================================= */
+el("btn-start").addEventListener("click", startGame);
+el("btn-restart").addEventListener("click", () => {
+  state = { currentLevel: 0, correctCount: 0, wrongCount: 0, startTime: null, playerName: "", currentLevelStartTime: null, levelDurations: [] };
+  localStorage.removeItem(STORAGE_KEY);
+  el("screen-end").classList.add("hidden");
+  el("screen-start").classList.remove("hidden");
+  el("player-name").value = "";
+});
+
+if (loadProgress() && state.currentLevel < LEVELS.length) {
+  el("player-name").value = state.playerName;
+}
+</script>
+
+</body>
+</html>
